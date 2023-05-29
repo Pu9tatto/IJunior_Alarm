@@ -6,43 +6,55 @@ public class Alarm : MonoBehaviour
     [SerializeField] private AudioSource _audioSource;
     [SerializeField] private float _volumeChangeDuration = 2f;
 
+    private bool _isFinishedRunningTime = false;
     private float _runningTime;
+    private float _minRunningTime = 0;
+    private float _normalizedVolume;
+    private float _minVolume = 0;
+    private float _maxVolume = 1;
     private IEnumerator _currentCoroutine;
 
     public void StartAlarm()
     {
-        _audioSource.Play();
-
-        StartNewCoroutine(VolumeUp());
+        StartNewCoroutine(VolumeChange(true));
     }
 
     public void StopAlarm()
     {
-        StartNewCoroutine(VolumeDown());
+        StartNewCoroutine(VolumeChange(false));
     }
 
-    private IEnumerator VolumeUp()
+    private IEnumerator VolumeChange(bool isVolumeUp)
     {
-        while (_audioSource.volume < 1)
+        while (_isFinishedRunningTime == false)
         {
-            _runningTime += Time.deltaTime;
-            _audioSource.volume = _runningTime / _volumeChangeDuration;
+            if (isVolumeUp)
+                _runningTime += Time.deltaTime;
+            else
+                _runningTime -= Time.deltaTime;
+
+            _normalizedVolume = _runningTime / _volumeChangeDuration;
+
+            _audioSource.volume = Mathf.MoveTowards(_minVolume, _maxVolume, _normalizedVolume);
+
+            CheckFinishRunningTime();
 
             yield return null;
         }
     }
 
-    private IEnumerator VolumeDown()
+    private void CheckFinishRunningTime()
     {
-        while (_audioSource.volume > 0)
+        if (_runningTime > _volumeChangeDuration)
         {
-            _runningTime -= Time.deltaTime;
-            _audioSource.volume = _runningTime / _volumeChangeDuration;
-
-            yield return null;
+            _runningTime = _volumeChangeDuration;
+            _isFinishedRunningTime = true;
         }
-
-        _audioSource.Stop();
+        else if (_runningTime < _minRunningTime)
+        {
+            _runningTime = _minRunningTime;
+            _isFinishedRunningTime = true;
+        }
     }
 
     private void StartNewCoroutine(IEnumerator coroutine)
@@ -50,6 +62,7 @@ public class Alarm : MonoBehaviour
         if (_currentCoroutine != null)
             StopCoroutine(_currentCoroutine);
 
+        _isFinishedRunningTime = false;
         _currentCoroutine = coroutine;
         StartCoroutine(coroutine);
     }
